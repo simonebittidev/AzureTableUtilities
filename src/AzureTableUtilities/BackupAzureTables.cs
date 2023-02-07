@@ -39,7 +39,7 @@ namespace TheByteStuff.AzureTableUtilities
         /// <param name="AzureConnection">Connection string for Azure Table and Blob Connections; ex "AccountName=devstoreaccount1;AccountKey={xxxxxxxxxxx};DefaultEndpointsProtocol=http;BlobEndpoint=http://127.0.0.1:10000/devstoreaccount1;QueueEndpoint=http://127.0.0.1:10001/devstoreaccount1;TableEndpoint=http://127.0.0.1:10002/devstoreaccount1;" </param>
         public BackupAzureTables(string AzureConnection) : this(AzureConnection, AzureConnection)
         {
-            
+
         }
 
         /// <summary>
@@ -130,7 +130,7 @@ namespace TheByteStuff.AzureTableUtilities
 
             try
             {
-                OutFileName = this.BackupTableToFile(TableName, OutFileDirectory, Compress, Validate, TimeoutSeconds, filters); 
+                OutFileName = this.BackupTableToFile(TableName, OutFileDirectory, Compress, Validate, TimeoutSeconds, filters);
                 OutFileNamePath = Path.Combine(OutFileDirectory, OutFileName);
 
                 if (!AZStorage.CloudStorageAccount.TryParse(new System.Net.NetworkCredential("", AzureBlobConnectionSpec).Password, out AZStorage.CloudStorageAccount StorageAccountAZ))
@@ -145,7 +145,7 @@ namespace TheByteStuff.AzureTableUtilities
 
                 AZBlob.CloudBlockBlob BlobBlock = directory.GetBlockBlobReference(OutFileName);
                 BlobBlock.StreamWriteSizeInBytes = 1024 * 1024 * 32; //Set stream write size to 32MB
-                BlobBlock.UploadFromFile(OutFileNamePath);                                
+                BlobBlock.UploadFromFile(OutFileNamePath);
 
                 DateTimeOffset OffsetTimeNow = System.DateTimeOffset.Now;
                 DateTimeOffset OffsetTimeRetain = System.DateTimeOffset.Now.AddDays(-1 * RetentionDays);
@@ -168,7 +168,7 @@ namespace TheByteStuff.AzureTableUtilities
                     }
                 }
 
-                return String.Format("Table '{0}' backed up as '{2}' under blob '{3}\\{4}'; {1} files aged.", TableName, BackupsAged, OutFileName, BlobRoot , directory.ToString());
+                return String.Format("Table '{0}' backed up as '{2}' under blob '{3}\\{4}'; {1} files aged.", TableName, BackupsAged, OutFileName, BlobRoot, directory.ToString());
             }
             catch (ConnectionException cex)
             {
@@ -292,7 +292,7 @@ namespace TheByteStuff.AzureTableUtilities
                     OutFile.Flush();
                     OutFile.Close();
                 }
-                
+
                 if (Validate)
                 {
                     int InRecords = 0;
@@ -317,8 +317,8 @@ namespace TheByteStuff.AzureTableUtilities
                         } while (DetailRec != null);
                         InFile.Close();
 
-                        TableSpec footer= JsonConvert.DeserializeObject<TableSpec>(FooterRec);
-                        if ((footer.RecordCount==InRecords) && (footer.TableName.Equals(TableName)))
+                        TableSpec footer = JsonConvert.DeserializeObject<TableSpec>(FooterRec);
+                        if ((footer.RecordCount == InRecords) && (footer.TableName.Equals(TableName)))
                         {
                             //Do nothing, in count=out count
                         }
@@ -379,7 +379,7 @@ namespace TheByteStuff.AzureTableUtilities
         /// <param name="TimeoutSeconds">Set timeout for table client.</param>
         /// <param name="filters">A list of Filter objects to be applied to table values extracted.</param>
         /// <returns>A string containing the name of the file created.</returns>
-        public string BackupTableToBlobDirect(string TableName, string BlobRoot, bool Compress = false, int RetentionDays = 30, int TimeoutSeconds = 30, List<Filter> filters = default(List<Filter>))
+        public string BackupTableToBlobDirect(string TableName, string BlobRoot, string BlobRootSubFolder, bool Compress = false, int RetentionDays = 30, int TimeoutSeconds = 30, List<Filter> filters = default(List<Filter>))
         {
             string OutFileName = "";
             int RecordCount = 0;
@@ -399,11 +399,11 @@ namespace TheByteStuff.AzureTableUtilities
             {
                 if (Compress)
                 {
-                    OutFileName = String.Format(TableName + "_Backup_" + System.DateTime.Now.ToString("yyyyMMddHHmmss") + ".txt.7z");                    
+                    OutFileName = String.Format(TableName + ".txt.7z");
                 }
                 else
                 {
-                    OutFileName = String.Format(TableName + "_Backup_" + System.DateTime.Now.ToString("yyyyMMddHHmmss") + ".txt");
+                    OutFileName = String.Format(TableName + ".txt");
                 }
 
                 if (!CosmosTable.CloudStorageAccount.TryParse(new System.Net.NetworkCredential("", AzureTableConnectionSpec).Password, out CosmosTable.CloudStorageAccount StorageAccount))
@@ -419,7 +419,7 @@ namespace TheByteStuff.AzureTableUtilities
                 AZBlob.CloudBlobClient ClientBlob = AZBlob.BlobAccountExtensions.CreateCloudBlobClient(StorageAccountAZ);
                 var container = ClientBlob.GetContainerReference(BlobRoot);
                 container.CreateIfNotExists();
-                AZBlob.CloudBlobDirectory directory = container.GetDirectoryReference(BlobRoot.ToLower() + "-table-" + TableName.ToLower());
+                AZBlob.CloudBlobDirectory directory = container.GetDirectoryReference(BlobRootSubFolder.ToLower());
 
                 AZBlob.CloudBlockBlob BlobBlock = directory.GetBlockBlobReference(OutFileName);
                 BlobBlock.StreamWriteSizeInBytes = 1024 * 1024 * 32; //Set stream write size to 32MB
@@ -487,7 +487,7 @@ namespace TheByteStuff.AzureTableUtilities
                     bs.Flush();
                     bs.Write(NewLineAsBytes, 0, NewLineAsBytes.Length);
                     bs.Flush();
-                    bs.Close();                    
+                    bs.Close();
                 }
                 catch (Exception ex)
                 {
@@ -540,7 +540,7 @@ namespace TheByteStuff.AzureTableUtilities
         /// <param name="TimeoutSeconds">Set timeout for table client.</param>
         /// <param name="filters">A list of Filter objects to be applied to table values extracted.</param>
         /// <returns>A string containing the name of the file(s) created as well as any backups aged.</returns>
-        public string BackupAllTablesToBlob(string BlobRoot, bool Compress = false, int RetentionDays = 30, int TimeoutSeconds = 30, List<Filter> filters = default(List<Filter>))
+        public string BackupAllTablesToBlob(string BlobRoot, string BlobRootSubFolder, string TablesToEsclude = "", bool Compress = false, int RetentionDays = 30, int TimeoutSeconds = 30, List<Filter> filters = default(List<Filter>))
         {
             if (String.IsNullOrWhiteSpace(BlobRoot))
             {
@@ -553,9 +553,12 @@ namespace TheByteStuff.AzureTableUtilities
                 List<string> TableNames = Helper.GetTableNames(AzureTableConnectionSpec);
                 if (TableNames.Count() > 0)
                 {
+
+                    var tablesToEsclude = TablesToEsclude?.ToLower().Split(';').ToList() ?? new List<string>();
                     foreach (string TableName in TableNames)
                     {
-                        BackupResults.Append(BackupTableToBlobDirect(TableName, BlobRoot, Compress, RetentionDays, TimeoutSeconds, filters) + "|");
+                        if (!tablesToEsclude.Any() || !tablesToEsclude.Contains(TableName.ToLower()))
+                            BackupResults.Append(BackupTableToBlobDirect(TableName, BlobRoot, BlobRootSubFolder, Compress, RetentionDays, TimeoutSeconds, filters) + "|");
                     }
                     return BackupResults.ToString();
                 }

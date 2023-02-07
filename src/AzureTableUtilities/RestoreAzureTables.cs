@@ -146,7 +146,7 @@ namespace TheByteStuff.AzureTableUtilities
             }
 
             try
-            { 
+            {
                 AZBlob.CloudBlobClient ClientBlob = AZBlob.BlobAccountExtensions.CreateCloudBlobClient(StorageAccountAZ);
                 var container = ClientBlob.GetContainerReference(BlobRoot);
                 container.CreateIfNotExists();
@@ -335,13 +335,14 @@ namespace TheByteStuff.AzureTableUtilities
                             TableDest.ExecuteBatch(Batch);
                             PartitionKey = String.Empty;
                         }
-                        catch (Exception ex) {
+                        catch (Exception ex)
+                        {
                             throw new RestoreFailedException(String.Format("Table '{0}' restore failed.", DestinationTableName), ex);
                         }
                     }
                 } // using (StreamReader
 
-                if (null==footer)
+                if (null == footer)
                 {
                     throw new RestoreFailedException(String.Format("Table '{0}' restore failed, no footer record found.", DestinationTableName));
                 }
@@ -420,7 +421,7 @@ namespace TheByteStuff.AzureTableUtilities
         /// <param name="BlobFileName">Name of the blob file to restore.</param>
         /// <param name="TimeoutSeconds">Set timeout for table client.</param>
         /// <returns>A string indicating the table restored and record count.</returns>
-        public string RestoreTableFromBlobDirect(string DestinationTableName, string OriginalTableName, string BlobRoot, string BlobFileName, int TimeoutSeconds = 30)
+        public string RestoreTableFromBlobDirect(string DestinationTableName, string OriginalTableName, string BlobRoot, string BlobRootSubFolder, string BlobFileName, int TimeoutSeconds = 30)
         {
             if (String.IsNullOrWhiteSpace(DestinationTableName))
             {
@@ -459,7 +460,7 @@ namespace TheByteStuff.AzureTableUtilities
                 AZBlob.CloudBlobClient ClientBlob = AZBlob.BlobAccountExtensions.CreateCloudBlobClient(StorageAccountAZ);
                 var container = ClientBlob.GetContainerReference(BlobRoot);
                 container.CreateIfNotExists();
-                AZBlob.CloudBlobDirectory directory = container.GetDirectoryReference(BlobRoot.ToLower() + "-table-" + OriginalTableName.ToLower());
+                AZBlob.CloudBlobDirectory directory = container.GetDirectoryReference(BlobRootSubFolder.ToLower());
 
                 // If file is compressed, Decompress to a temp file in the blob
                 if (Decompress)
@@ -625,5 +626,77 @@ namespace TheByteStuff.AzureTableUtilities
 
             return String.Format("Restore to table '{0}' Successful; {1} entries.", DestinationTableName, TotalRecordCount);
         }
+
+        /// <summary>
+        /// Backup all tables direct to Blob storage.
+        /// </summary>
+        /// <param name="BlobRoot">Name to use as blob root folder.</param>
+        /// <param name="Compress">True to compress the file.</param>
+        /// <param name="RetentionDays">Process will age files in blob created more than x days ago.</param>
+        /// <param name="TimeoutSeconds">Set timeout for table client.</param>
+        /// <param name="filters">A list of Filter objects to be applied to table values extracted.</param>
+        /// <returns>A string containing the name of the file(s) created as well as any backups aged.</returns>
+        public string RestoreAllTablesFromBlob(string BlobRoot, string BlobRootSubFolder, string TablesToEsclude = "", int TimeoutSeconds = 30)
+        {
+            if (String.IsNullOrWhiteSpace(BlobRoot))
+            {
+                throw new ParameterSpecException("BlobRoot is missing.");
+            }
+
+            if (String.IsNullOrWhiteSpace(BlobRootSubFolder))
+            {
+                throw new ParameterSpecException("BlobRootSubFolder is missing.");
+            }
+
+            try
+            {
+                if (!CosmosTable.CloudStorageAccount.TryParse(new System.Net.NetworkCredential("", AzureTableConnectionSpec).Password, out CosmosTable.CloudStorageAccount StorageAccount))
+                {
+                    throw new ConnectionException("Can not connect to CloudStorage Account.  Verify connection string.");
+                }
+
+                if (!AZStorage.CloudStorageAccount.TryParse(new System.Net.NetworkCredential("", AzureBlobConnectionSpec).Password, out AZStorage.CloudStorageAccount StorageAccountAZ))
+                {
+                    throw new ConnectionException("Can not connect to CloudStorage Account.  Verify connection string.");
+                }
+
+                AZBlob.CloudBlobClient ClientBlob = AZBlob.BlobAccountExtensions.CreateCloudBlobClient(StorageAccountAZ);
+                var container = ClientBlob.GetContainerReference(BlobRoot);
+                AZBlob.CloudBlobDirectory directory = container.GetDirectoryReference(BlobRootSubFolder.ToLower());
+
+                var blobList = directory.ListBlobs();
+
+                if (blobList.Count() > 0)
+                {
+                    StringBuilder restoreResults = new StringBuilder();
+                    var tablesToEsclude = TablesToEsclude?.ToLower().Split(';').ToList() ?? new List<string>();
+                    var deleteAzureTables = new DeleteAzureTables(AzureTableConnectionSpec);
+                    foreach (object blob in blobList)
+                    {
+                        var i = blob as Microsoft.Azure.Storage.Blob.CloudBlockBlob;
+                        var tableName = i.Name.Replace($"{BlobRootSubFolder}/", "").Replace($".txt", "");
+
+                        if (!tablesToEsclude.Any() || !tablesToEsclude.Contains(tableName.ToLower()))
+                        {
+                            deleteAzureTables.DeleteAzureTableRows(tableName);
+                            Console.WriteLine($"Table {tableName}: rows deleted.");
+
+                            restoreResults.Append(RestoreTableFromBlobDirect(tableName, tableName, BlobRoot, BlobRootSubFolder, i.Name.Replace($"{BlobRootSubFolder}/", ""), TimeoutSeconds) + "|");
+                            Console.WriteLine($"Table {tableName} restored.");
+                        }
+                    }
+                    return restoreResults.ToString();
+                }
+                else
+                {
+                    return "No Tables found.";
+                }
+            }
+            catch (Exception ex)
+            {
+                throw new BackupFailedException(String.Format("Backup of all tables to blob '{0}' failed.", BlobRoot), ex);
+            }
+        }
+
     }
 }

@@ -12,4 +12,7 @@ src/AzureTableUtilities/NuGetCommandLine.txt.bak
 src/AzureTableUtilitiesXUnitTest/bin
 src/AzureTableUtilitiesXUnitTest/obj
 src/TestResults
-
+.DS_Store
+AzureTableUtilities/.DS_Store
+AzureTableUtilities/D:/
+src/AzureTableUtilities/D:/
