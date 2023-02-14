@@ -104,7 +104,7 @@ namespace TheByteStuff.AzureTableUtilities
                 TableSource.ServiceClient.DefaultRequestOptions.ServerTimeout = new TimeSpan(0, 0, TimeoutSeconds);
 
                 bool BatchWritten = true;
-                string PartitionKey = String.Empty;
+                string PartitionKey = null;
                 CosmosTable.TableBatchOperation Batch = new CosmosTable.TableBatchOperation();
                 int BatchSize = 100;
                 int BatchCount = 0;
@@ -129,7 +129,7 @@ namespace TheByteStuff.AzureTableUtilities
                     foreach (CosmosTable.DynamicTableEntity dte in queryResult.Results)
                     {
                         TotalRecordCountIn++;
-                        if (String.Empty.Equals(PartitionKey)) { PartitionKey = dte.PartitionKey; }
+                        if (PartitionKey == null) { PartitionKey = dte.PartitionKey; }
                         if (dte.PartitionKey == PartitionKey)
                         {
                             Batch.Delete(dte);
@@ -159,7 +159,7 @@ namespace TheByteStuff.AzureTableUtilities
                             try
                             {
                                 TableSource.ExecuteBatch(Batch);
-                                PartitionKey = String.Empty;
+                                PartitionKey = null;
                                 Batch = new CosmosTable.TableBatchOperation();
                                 BatchWritten = true;
                                 BatchCount = 0;
@@ -178,7 +178,7 @@ namespace TheByteStuff.AzureTableUtilities
                     try
                     {
                         TableSource.ExecuteBatch(Batch);
-                        PartitionKey = String.Empty;
+                        PartitionKey = null;
                     }
                     catch (Exception ex)
                     {
