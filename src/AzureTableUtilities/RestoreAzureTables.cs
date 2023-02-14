@@ -674,14 +674,14 @@ namespace TheByteStuff.AzureTableUtilities
                     foreach (object blob in blobList)
                     {
                         var i = blob as Microsoft.Azure.Storage.Blob.CloudBlockBlob;
-                        var tableName = i.Name.Replace($"{BlobRootSubFolder}/", "").Replace($".txt", "");
+                        var tableName = i.Name.Replace($"{BlobRootSubFolder.ToLower()}/", "").Replace($".txt", "");
 
                         if (!tablesToEsclude.Any() || !tablesToEsclude.Contains(tableName.ToLower()))
                         {
                             deleteAzureTables.DeleteAzureTableRows(tableName);
                             Console.WriteLine($"Table {tableName}: rows deleted.");
 
-                            restoreResults.Append(RestoreTableFromBlobDirect(tableName, tableName, BlobRoot, BlobRootSubFolder, i.Name.Replace($"{BlobRootSubFolder}/", ""), TimeoutSeconds) + "|");
+                            restoreResults.Append(RestoreTableFromBlobDirect(tableName, tableName, BlobRoot, BlobRootSubFolder, i.Name.Replace($"{BlobRootSubFolder.ToLower()}/", ""), TimeoutSeconds) + "|");
                             Console.WriteLine($"Table {tableName} restored.");
                         }
                     }
