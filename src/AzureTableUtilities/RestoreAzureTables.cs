@@ -523,7 +523,7 @@ namespace TheByteStuff.AzureTableUtilities
         private string RestoreFromStream(StreamReader InputFileStream, CosmosTable.CloudTable TableDest, string DestinationTableName)
         {
             bool BatchWritten = true;
-            string PartitionKey = String.Empty;
+            string PartitionKey = null;
             CosmosTable.TableBatchOperation Batch = new CosmosTable.TableBatchOperation();
             int BatchSize = 100;
             int BatchCount = 0;
@@ -548,7 +548,7 @@ namespace TheByteStuff.AzureTableUtilities
                     else
                     {
                         CosmosTable.DynamicTableEntity dte2 = serializer.Deserialize(InFileLine);
-                        if (String.Empty.Equals(PartitionKey)) { PartitionKey = dte2.PartitionKey; }
+                        if (PartitionKey == null) { PartitionKey = dte2.PartitionKey; }
                         if (dte2.PartitionKey == PartitionKey)
                         {
                             Batch.InsertOrReplace(dte2);
@@ -578,7 +578,7 @@ namespace TheByteStuff.AzureTableUtilities
                             try
                             {
                                 TableDest.ExecuteBatch(Batch);
-                                PartitionKey = String.Empty;
+                                PartitionKey = null;
                                 Batch = new CosmosTable.TableBatchOperation();
                                 BatchWritten = true;
                                 BatchCount = 0;
@@ -598,7 +598,7 @@ namespace TheByteStuff.AzureTableUtilities
                     try
                     {
                         TableDest.ExecuteBatch(Batch);
-                        PartitionKey = String.Empty;
+                        PartitionKey = null;
                     }
                     catch (Exception ex)
                     {
@@ -694,7 +694,7 @@ namespace TheByteStuff.AzureTableUtilities
             }
             catch (Exception ex)
             {
-                throw new BackupFailedException(String.Format("Backup of all tables to blob '{0}' failed.", BlobRoot), ex);
+                throw new BackupFailedException(String.Format("Restore of all tables to blob '{0}' failed.", BlobRoot), ex);
             }
         }
 
